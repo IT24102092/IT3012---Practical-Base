@@ -1,4 +1,8 @@
 # agent.py
+
+# Import random module to allow the agent to select actions randomly from the available action list.
+import random
+
 class GreedyGridAgent:
     """A simple agent that tries to move around systematically to clear the grid."""
 
