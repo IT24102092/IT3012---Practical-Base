@@ -1,7 +1,7 @@
 # simulator2.py
 
 from visual_grid_game import VisualGridHuntGame
-from agent import ModelBasedAgent
+from agent import SearchAgent
 
 
 def run_agent_simulation():
@@ -15,7 +15,7 @@ def run_agent_simulation():
     )
 
     # Create the agent
-    agent = ModelBasedAgent()
+    agent = SearchAgent()
 
 
     print("=== Agent Simulation Started ===")
