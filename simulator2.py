@@ -16,6 +16,7 @@ def run_agent_simulation():
 
     # Create the agent
     agent = SearchAgent()
+    agent.active_algo = "AStar"
 
 
     print("=== Agent Simulation Started ===")

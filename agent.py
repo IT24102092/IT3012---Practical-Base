@@ -1,6 +1,7 @@
 # agent.py
 
 import random
+import math
 from collections import deque
 import heapq
 
@@ -213,12 +214,93 @@ class ModelBasedAgent:
 
 class SearchAgent:
 
-     def __init__(self):
+    def __init__(self):
         self.plan = []
         self.active_algo = "BFS"
 
+    def manhattan_distance(self, pos, goal):
+        return abs(pos[0] - goal[0]) + abs(pos[1] - goal[1])
 
-     def bfs_search(self, start, goal, walls, grid_size):
+    def euclidean_distance(self, pos, goal):
+        return math.sqrt(
+            (pos[0] - goal[0]) ** 2 +
+            (pos[1] - goal[1]) ** 2
+        )
+
+    def astar_search(
+        self,
+        start_pos,
+        goal_pos,
+        walls,
+        grid_size,
+        heuristic_type='manhattan'
+    ):
+        # Priority queue: (f_cost, g_cost, current_pos, path_taken)
+        if heuristic_type == 'manhattan':
+            h_cost = self.manhattan_distance(start_pos, goal_pos)
+        else:
+            h_cost = self.euclidean_distance(start_pos, goal_pos)
+
+        frontier = [(h_cost, 0, start_pos, [])]
+        reached_states = set()
+
+        while frontier:
+            f_cost, g_cost, current_pos, path_taken = heapq.heappop(frontier)
+
+            if current_pos == goal_pos:
+                return path_taken
+
+            if current_pos in reached_states:
+                continue
+
+            reached_states.add(current_pos)
+
+            x, y = current_pos
+
+            neighbors = [
+                ((x, y + 1), "Up"),
+                ((x, y - 1), "Down"),
+                ((x - 1, y), "Left"),
+                ((x + 1, y), "Right")
+            ]
+
+            for next_pos, action in neighbors:
+                nx, ny = next_pos
+
+                if (
+                    0 <= nx < grid_size[0]
+                    and 0 <= ny < grid_size[1]
+                    and next_pos not in walls
+                    and next_pos not in reached_states
+                ):
+                    g_new = g_cost + 1
+
+                    if heuristic_type == 'manhattan':
+                        h_new = self.manhattan_distance(
+                            next_pos,
+                            goal_pos
+                        )
+                    else:
+                        h_new = self.euclidean_distance(
+                            next_pos,
+                            goal_pos
+                        )
+
+                    f_new = g_new + h_new
+
+                    heapq.heappush(
+                        frontier,
+                        (
+                            f_new,
+                            g_new,
+                            next_pos,
+                            path_taken + [action]
+                        )
+                    )
+
+        return None
+
+    def bfs_search(self, start, goal, walls, grid_size):
 
         queue = deque([(start, [])])
         reached = {start}
@@ -249,7 +331,6 @@ class SearchAgent:
                     and next_pos not in walls
                     and next_pos not in reached
                 ):
-
                     reached.add(next_pos)
 
                     queue.append(
@@ -258,8 +339,7 @@ class SearchAgent:
 
         return None
 
-
-     def dfs_search(self, start, goal, walls, grid_size):
+    def dfs_search(self, start, goal, walls, grid_size):
 
         stack = [(start, [])]
         reached = {start}
@@ -290,7 +370,6 @@ class SearchAgent:
                     and next_pos not in walls
                     and next_pos not in reached
                 ):
-
                     reached.add(next_pos)
 
                     stack.append(
@@ -299,8 +378,7 @@ class SearchAgent:
 
         return None
 
-
-     def ucs_search(self, start, goal, walls, grid_size):
+    def ucs_search(self, start, goal, walls, grid_size):
 
         frontier = [(0, start, [])]
         reached = {start: 0}
@@ -330,14 +408,12 @@ class SearchAgent:
                     and 0 <= ny < grid_size[1]
                     and next_pos not in walls
                 ):
-
                     new_cost = cost + step_cost
 
                     if (
                         next_pos not in reached
                         or new_cost < reached[next_pos]
                     ):
-
                         reached[next_pos] = new_cost
 
                         heapq.heappush(
@@ -351,8 +427,7 @@ class SearchAgent:
 
         return None
 
-
-     def sense_and_act(self, percept):
+    def sense_and_act(self, percept):
 
         if not self.plan:
 
@@ -366,8 +441,9 @@ class SearchAgent:
             # Find the closest food
             goal = min(
                 food_positions,
-                key=lambda food: abs(food[0] - start[0]) +
-                                  abs(food[1] - start[1])
+                key=lambda food:
+                    abs(food[0] - start[0]) +
+                    abs(food[1] - start[1])
             )
 
             walls = set(percept["walls"])
@@ -398,6 +474,16 @@ class SearchAgent:
                     goal,
                     walls,
                     grid_size
+                )
+
+            elif self.active_algo == "AStar":
+
+                self.plan = self.astar_search(
+                    start,
+                    goal,
+                    walls,
+                    grid_size,
+                    heuristic_type="manhattan"
                 )
 
             if self.plan is None:
