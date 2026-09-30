@@ -1,4 +1,4 @@
-# visual_grid_game.py
+# Task 3.2: Integrate logical game facts into the grid environment
 
 import random
 import tkinter as tk
@@ -10,7 +10,14 @@ class VisualGridHuntGame:
     Supports partial observability for Simple Reflex and Model-Based agents.
     """
 
-    def __init__(self, width=10, height=10, num_food=10, num_opponents=2, custom_walls=None):
+    def __init__(
+        self,
+        width=10,
+        height=10,
+        num_food=10,
+        num_opponents=2,
+        custom_walls=None
+    ):
 
         self.width = width
         self.height = height
@@ -21,10 +28,13 @@ class VisualGridHuntGame:
         # Agent facing direction
         self.direction = "Up"
 
+        # Task 3.2: Initialize logical game facts
+        self.has_dust = True
+        self.bloodseeker_present = True
 
+        # Set custom walls or use default walls
         if custom_walls is not None:
             self.walls = set(custom_walls)
-
         else:
             self.walls = {
                 (2, 2),
@@ -33,8 +43,6 @@ class VisualGridHuntGame:
                 (6, 5),
                 (3, 7)
             }
-
-
 
         # Generate food positions
         self.food_positions = set()
@@ -49,8 +57,6 @@ class VisualGridHuntGame:
             if position != (0, 0) and position not in self.walls:
                 self.food_positions.add(position)
 
-
-
         # Generate opponents
         self.opponents = []
 
@@ -61,7 +67,6 @@ class VisualGridHuntGame:
 
             opponent = [ox, oy]
 
-
             if (
                 tuple(opponent) != (0, 0)
                 and tuple(opponent) not in self.walls
@@ -69,25 +74,17 @@ class VisualGridHuntGame:
             ):
                 self.opponents.append(opponent)
 
-
-
         self.score = 0
         self.steps = 0
         self.collision = False
-
-
-
 
     def get_percept(self) -> dict:
 
         x, y = self.agent_pos
 
-
         # Find cell in front of agent
-
         front_x = x
         front_y = y
-
 
         if self.direction == "Up":
             front_y += 1
@@ -101,10 +98,7 @@ class VisualGridHuntGame:
         elif self.direction == "Right":
             front_x += 1
 
-
-
         # Check wall ahead
-
         wall_ahead = (
             (front_x, front_y) in self.walls
             or front_x < 0
@@ -113,10 +107,7 @@ class VisualGridHuntGame:
             or front_y >= self.height
         )
 
-
-
-        # Limited percept for agent
-
+        # Return the current percept
         return {
 
             # Needed for Model-Based memory
@@ -124,38 +115,37 @@ class VisualGridHuntGame:
 
             # Current sensors
             "wall_ahead": wall_ahead,
-
             "food_here": tuple(self.agent_pos) in self.food_positions,
 
             # Global state for Search Agent
-             "grid_size": (self.width, self.height),
-             "walls": list(self.walls),
-             "all_food": list(self.food_positions)
+            "grid_size": (self.width, self.height),
+            "walls": list(self.walls),
+            "all_food": list(self.food_positions),
+
+            # Task 3.2: Information used by the Knowledge Base
+            "opponents": [
+                list(opponent) for opponent in self.opponents
+            ],
+            "has_dust": self.has_dust,
+            "bloodseeker_present": self.bloodseeker_present
         }
-
-
-
 
     def execute_action(self, action: str):
 
         # Update facing direction
         self.direction = action
 
-
         self.steps += 1
-
 
         new_pos = list(self.agent_pos)
 
-
-
+        # Calculate the agent's next position
         if action == "Up":
 
             new_pos[1] = min(
                 self.height - 1,
                 new_pos[1] + 1
             )
-
 
         elif action == "Down":
 
@@ -164,14 +154,12 @@ class VisualGridHuntGame:
                 new_pos[1] - 1
             )
 
-
         elif action == "Left":
 
             new_pos[0] = max(
                 0,
                 new_pos[0] - 1
             )
-
 
         elif action == "Right":
 
@@ -180,26 +168,17 @@ class VisualGridHuntGame:
                 new_pos[0] + 1
             )
 
-
-
         # Wall collision
-
         if tuple(new_pos) in self.walls:
 
             self.score -= 5
-
 
         else:
 
             self.agent_pos = new_pos
 
-
-
-
         # Food collection
-
         current_position = tuple(self.agent_pos)
-
 
         if current_position in self.food_positions:
 
@@ -207,13 +186,8 @@ class VisualGridHuntGame:
 
             self.score += 20
 
-
-
-
         # Move opponents
-
         for opponent in self.opponents:
-
 
             move = random.choice(
                 [
@@ -225,32 +199,24 @@ class VisualGridHuntGame:
                 ]
             )
 
-
             if move == "Up" and opponent[1] < self.height - 1:
                 opponent[1] += 1
-
 
             elif move == "Down" and opponent[1] > 0:
                 opponent[1] -= 1
 
-
             elif move == "Left" and opponent[0] > 0:
                 opponent[0] -= 1
-
 
             elif move == "Right" and opponent[0] < self.width - 1:
                 opponent[0] += 1
 
-
-
+            # Check opponent collision
             if opponent == self.agent_pos:
 
                 self.score -= 50
 
                 self.collision = True
-
-
-
 
     def is_done(self) -> bool:
 
@@ -261,19 +227,22 @@ class VisualGridHuntGame:
         )
 
 
-
-
-
 class GridGameGUI:
 
-    def __init__(self, root, width=10, height=10, num_food=12, num_opponents=2):
+    def __init__(
+        self,
+        root,
+        width=10,
+        height=10,
+        num_food=12,
+        num_opponents=2
+    ):
 
         self.root = root
 
         self.root.title(
             "IT3012 - Multi Agent Grid Hunt"
         )
-
 
         self.env = VisualGridHuntGame(
             width,
@@ -282,10 +251,7 @@ class GridGameGUI:
             num_opponents
         )
 
-
-
         self.cell_size = 50
-
 
         self.canvas = tk.Canvas(
             root,
@@ -294,10 +260,7 @@ class GridGameGUI:
             bg="white"
         )
 
-
         self.canvas.pack()
-
-
 
         self.label = tk.Label(
             root,
@@ -307,18 +270,13 @@ class GridGameGUI:
 
         self.label.pack()
 
-
-
         self.draw_grid()
-
-
-
 
     def draw_grid(self):
 
         self.canvas.delete("all")
 
-
+        # Draw grid cells
         for x in range(self.env.width):
 
             for y in range(self.env.height):
@@ -329,11 +287,8 @@ class GridGameGUI:
                     self.env.height - 1 - y
                 ) * self.cell_size
 
-
                 x2 = x1 + self.cell_size
-
                 y2 = y1 + self.cell_size
-
 
                 self.canvas.create_rectangle(
                     x1,
@@ -343,36 +298,27 @@ class GridGameGUI:
                     outline="black"
                 )
 
-
-
         # Draw food
-
         for fx, fy in self.env.food_positions:
 
             self.canvas.create_oval(
-                fx*self.cell_size+15,
-                (self.env.height-1-fy)*self.cell_size+15,
-                fx*self.cell_size+35,
-                (self.env.height-1-fy)*self.cell_size+35,
+                fx * self.cell_size + 15,
+                (self.env.height - 1 - fy) * self.cell_size + 15,
+                fx * self.cell_size + 35,
+                (self.env.height - 1 - fy) * self.cell_size + 35,
                 fill="orange"
             )
 
-
-
         # Draw agent
-
         ax, ay = self.env.agent_pos
 
         self.canvas.create_oval(
-            ax*self.cell_size+10,
-            (self.env.height-1-ay)*self.cell_size+10,
-            ax*self.cell_size+40,
-            (self.env.height-1-ay)*self.cell_size+40,
+            ax * self.cell_size + 10,
+            (self.env.height - 1 - ay) * self.cell_size + 10,
+            ax * self.cell_size + 40,
+            (self.env.height - 1 - ay) * self.cell_size + 40,
             fill="blue"
         )
-
-
-
 
 
 if __name__ == "__main__":

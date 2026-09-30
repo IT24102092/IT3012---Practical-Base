@@ -4,6 +4,7 @@ import random
 import math
 from collections import deque
 import heapq
+from logic_engine import KnowledgeBase     # Task 3.1: Import the Knowledge Base
 
 
 class GreedyGridAgent:
@@ -12,14 +13,11 @@ class GreedyGridAgent:
     def __init__(self):
         self.actions_pool = ['Up', 'Down', 'Left', 'Right']
 
-
     def sense_and_act(self, percept: dict) -> str:
 
         pos = percept['agent_pos']
 
         return random.choice(self.actions_pool)
-
-
 
 
 # Simple Reflex Agent
@@ -34,18 +32,13 @@ class SimpleReflexAgent:
         if percept["food_here"]:
             return "Suck"
 
-
         # IF wall ahead THEN turn left
         elif percept["wall_ahead"]:
             return "Left"
 
-
         # ELSE move right
         else:
             return "Right"
-
-
-
 
 
 # Model Based Agent
@@ -62,31 +55,21 @@ class ModelBasedAgent:
         # Previous action memory
         self.last_action = None
 
-
-
-
-    def sense_and_act(self, percept: dict) -> str:
-
+    def sense_and_act(self, percept: dict):
 
         # Current position
         current_position = tuple(percept["agent_pos"])
 
-
         # Update memory
         self.visited_cells.add(current_position)
-
-
 
         # Rule 1: Food found
         if percept["food_here"]:
 
             action = "Suck"
 
-
-
         # Rule 2: Wall ahead
         elif percept["wall_ahead"]:
-
 
             possible_actions = [
                 "Up",
@@ -95,12 +78,9 @@ class ModelBasedAgent:
                 "Right"
             ]
 
-
             action = "Left"
 
-
             for move in possible_actions:
-
 
                 if move == "Up":
 
@@ -109,14 +89,12 @@ class ModelBasedAgent:
                         current_position[1] + 1
                     )
 
-
                 elif move == "Down":
 
                     next_position = (
                         current_position[0],
                         current_position[1] - 1
                     )
-
 
                 elif move == "Left":
 
@@ -125,7 +103,6 @@ class ModelBasedAgent:
                         current_position[1]
                     )
 
-
                 else:
 
                     next_position = (
@@ -133,21 +110,14 @@ class ModelBasedAgent:
                         current_position[1]
                     )
 
-
-
                 # Select unvisited direction
                 if next_position not in self.visited_cells:
 
                     action = move
                     break
 
-
-
-
-
         # Rule 3: Normal movement using memory
         else:
-
 
             possible_actions = [
                 "Right",
@@ -156,13 +126,9 @@ class ModelBasedAgent:
                 "Down"
             ]
 
-
             action = "Right"
 
-
-
             for move in possible_actions:
-
 
                 if move == "Right":
 
@@ -171,14 +137,12 @@ class ModelBasedAgent:
                         current_position[1]
                     )
 
-
                 elif move == "Left":
 
                     next_position = (
                         current_position[0] - 1,
                         current_position[1]
                     )
-
 
                 elif move == "Up":
 
@@ -187,7 +151,6 @@ class ModelBasedAgent:
                         current_position[1] + 1
                     )
 
-
                 else:
 
                     next_position = (
@@ -195,28 +158,37 @@ class ModelBasedAgent:
                         current_position[1] - 1
                     )
 
-
-
                 if next_position not in self.visited_cells:
 
                     action = move
                     break
 
-
-
-
         # Remember last action
         self.last_action = action
 
-
         return action
-    
+
+
+# Task 3.1: Initialize the Knowledge Base
 
 class SearchAgent:
 
     def __init__(self):
-        self.plan = []
-        self.active_algo = "BFS"
+        self.plan = []  # Store the planned actions
+        self.active_algo = "BFS"  # Set the search algorithm
+
+        self.kb = KnowledgeBase()  # Create a knowledge base
+
+        # Add the safety rules
+        self.kb.tell_rule(
+            ["TargetVisible", "HasDust"],
+            "SafeToEngage"
+        )
+
+        self.kb.tell_rule(
+            ["SafeToEngage", "BloodseekerMissing"],
+            "Retreat"
+        )
 
     def manhattan_distance(self, pos, goal):
         return abs(pos[0] - goal[0]) + abs(pos[1] - goal[1])
@@ -227,14 +199,19 @@ class SearchAgent:
             (pos[1] - goal[1]) ** 2
         )
 
+    # Task 3.2: Validate candidate tiles using the Knowledge Base
     def astar_search(
         self,
         start_pos,
         goal_pos,
         walls,
         grid_size,
+        opponents,
+        has_dust,
+        bloodseeker_present,
         heuristic_type='manhattan'
     ):
+
         # Priority queue: (f_cost, g_cost, current_pos, path_taken)
         if heuristic_type == 'manhattan':
             h_cost = self.manhattan_distance(start_pos, goal_pos)
@@ -266,6 +243,25 @@ class SearchAgent:
 
             for next_pos, action in neighbors:
                 nx, ny = next_pos
+
+                # Task 3.2: Check whether the candidate tile is safe
+                self.kb.clear_facts()
+
+                if next_pos in opponents:
+                    self.kb.tell_fact("TargetVisible")
+
+                if has_dust:
+                    self.kb.tell_fact("HasDust")
+
+                if not bloodseeker_present:
+                    self.kb.tell_fact("BloodseekerMissing")
+
+                # Run forward chaining for every candidate tile
+                self.kb.forward_chain()
+
+                # Skip this tile if the rules infer Retreat
+                if "Retreat" in self.kb.facts:
+                    continue
 
                 if (
                     0 <= nx < grid_size[0]
@@ -478,11 +474,15 @@ class SearchAgent:
 
             elif self.active_algo == "AStar":
 
+                # Task 3.2: Pass percept information to A*
                 self.plan = self.astar_search(
                     start,
                     goal,
                     walls,
                     grid_size,
+                    percept["opponents"],
+                    percept["has_dust"],
+                    percept["bloodseeker_present"],
                     heuristic_type="manhattan"
                 )
 
